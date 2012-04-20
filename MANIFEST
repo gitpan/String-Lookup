@@ -1,0 +1,10 @@
+MANIFEST
+CHANGELOG
+README
+Makefile.PL
+lib/String/Lookup.pm
+lib/String/Lookup/PurePerl.pm
+t/01basic.t
+t/02init.t
+META.yml                                 Module YAML meta-data (added by MakeMaker)
+META.json                                Module JSON meta-data (added by MakeMaker)
