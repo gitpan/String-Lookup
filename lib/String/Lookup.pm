@@ -1,7 +1,7 @@
 package String::Lookup;
 
 # version info
-$VERSION= '0.01';
+$VERSION= '0.02';
 
 # make sure we're strict and verbose as possible
 use strict;
@@ -26,12 +26,13 @@ String::Lookup - convert strings to ID's authoritatively and vice-versa
  use String::Lookup;
 
  tie my %lookup, 'String::Lookup',
-   init  => sub { },  # code to initialize hash with
-   flush => sub { },  # code to flush hash with
+   init      => $what,    # hash / code ref to initialize hash with
+   flush     => sub { },  # code to flush hash with
+   autoflush => $when,    # when to automatically flush, default: at destruction
  };
 
  my $id= $lookup{ \$string }; # strings must be indicated by reference
- my $string= $lookup{$id};    # numbers indicat id -> string mapping
+ my $string= $lookup{$id};    # numbers indicate id -> string mapping
 
  # optimizing by bypassing the slow tie interface
  my $ro_lookup= %lookup;
@@ -39,7 +40,7 @@ String::Lookup - convert strings to ID's authoritatively and vice-versa
 
 =head1 VERSION
 
-This documentation describes version 0.01.
+This documentation describes version 0.02.
 
 =head1 DESCRIPTION
 
@@ -53,16 +54,20 @@ then it is assumed to be the numeric ID for which the string should be returned.
 =head1 INITIALIZATION
 
  tie my %lookup, 'String::Lookup',
-   init  => sub { return $hash_ref },  # code to initialize hash with
+   init  => $hash_ref,    # hash ref to use as underlying hash
  };
 
-The C<init> parameter indicates a code reference that will be called to
-initialize the lookup hash.  The subroutine is supposed to return a hash
-reference that should be used as the underlying hash in which string to
-numerical ID mapping is stored.
+ tie my %lookup, 'String::Lookup',
+   init  => sub { ... },  # code to initialize hash with
+ };
 
-A simple implementation, that assumes strings will never contain newlines,
-could be:
+The C<init> parameter indicates how the underlying hash should be initialized.
+It can either be a a hash reference (that will be used directly) or a  code
+reference that is supposed to return a hash reference that should be used as
+the underlying hash in which string to numerical ID mapping is stored.
+
+A simple implementation of the code reference, that assumes strings will never
+contain newlines, could be:
 
  sub simple_init {
      my %hash;
@@ -111,6 +116,49 @@ could be:
      print $handle, "$_:$strings->[$_]\n" foreach @{$ids};
      close $handle;
  } #simple_flush
+
+Flushing the data can also be done at any one time by calling the C<flush>
+method on the object under the C<tie> implementation.  This object can be
+obtained with the C<tied> function:
+
+  ( tied %hash )->flush;
+
+Please note that it is generally a bad idea to keep a reference to the
+underlying object around.  See C<The "untie" Gotcha> in L<perltie>.
+
+=head1 AUTOMATIC FLUSHING
+
+ tie my %lookup, 'String::Lookup',
+   autoflush => $when,    # when to automatically flush, default: at destruction
+ };
+
+The C<autoflush> parameter indicates when flushing of strings and their
+associated ID's should be done automatically, rather then "manually" (by
+calling the C<flush> method on the underlying object) or at object destruction
+time.
+
+Two types of autoflush parameter can be specified:
+
+=over 4
+
+=item per X new ID's
+
+ autoflush => $number,         # flush after every $number new ID's
+
+If the value specified with the C<autoflush> parameter is a simple number,
+then it will be interpreted as the number of new ID's that should be seen
+before an automatic flush will take place.
+
+=item per every N seconds
+
+ autoflush => $seconds . "s",  # flush after every $seconds seconds
+
+If the value specified with the C<autoflush> parameter is a simple number
+postfixed with the letter "s", then it will be interpreted as the number of
+seconds since the last flush that should have passed before doing an automatic
+flush (and with new ID's having been added, of course).
+
+=back
 
 =head1 OPTIMIZING STRING LOOKUPS
 

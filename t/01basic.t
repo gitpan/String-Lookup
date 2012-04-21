@@ -6,7 +6,7 @@ BEGIN {				# Magic Perl CORE pragma
     }
 }
 
-use Test::More tests => 2 + 8 + 8 + 2 + 4;
+use Test::More tests => 2 + 3 + 8 + 8 + 2 + 5 + 4;
 use strict;
 use warnings;
 
@@ -17,6 +17,7 @@ use String::Lookup;
 # initializations
 my $foo= 'foo';
 my $bar= 'bar';
+my $foobar= join ",", $foo, $bar;
 
 # set up the hash
 my $ro_hash;
@@ -25,13 +26,18 @@ my $object= tie my %hash, 'String::Lookup',
       my ( $list, $todo )= @_;
       is( reftype($list), 'ARRAY', 'first param in flush' );
       is( reftype($todo), 'ARRAY', 'second param in flush' );
-      is( join( ',', @$list[ 1, 2 ] ), "$foo,$bar", 'strings in list' );
+      is( join( ',', @$list[ 1, 2 ] ), $foobar, 'strings in list' );
       is( join( ',', @{$todo} ), '1,2', 'strings in list' );
+      1;
   };
-
 isa_ok( $object, 'String::Lookup', 'check object of tie' );
 $ro_hash= %hash;
 is( reftype($ro_hash), 'HASH', 'check fast access hash' );
+
+# checking order of keys on empty hash
+ok( !defined( scalar( each %hash ) ), 'no first key' );
+ok( !defined( scalar( each %hash ) ), 'no second key' );
+is( join( ",", keys %hash ), '', 'all keys where there are none' );
 
 # string 1
 ok( !exists $hash{ \$foo }, 'check non-existence of string' );
@@ -57,3 +63,10 @@ ok( exists $hash{ 2     }, 'check existence of another id' );
 ok( !eval { $hash{ \$foo }= 3 }, 'check assignment error' );
 diag $@
   if !ok( $@ =~ m#^Cannot assign values to a lookup hash#, 'right error?' );
+
+# checking order of keys
+is( scalar( each %hash ), $foo, 'first key' );
+is( scalar( each %hash ), $bar, 'second key' );
+ok( !defined( scalar( each %hash ) ), 'no more keys' );
+is( scalar( each %hash ), $foo, 'first key again' );
+is( join( ",", keys %hash ), $foobar, 'all keys' );

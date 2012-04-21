@@ -1,2 +1,12 @@
+0.02	21 April 2012
+	Order of keys is now the order in which they were added.  This now
+	bypasses the normal way of generating keys of a hash.
+
+	Added support for autoflushing.  Initialization can now also be done
+	by just specifying a hash ref.  More tests, including something of a
+	performance test: on my MacBook it does ~110K new ID's / second and
+	about ~400K existing ID's / second using the optimized ro_hash
+	construct.
+
 0.01    20 April 2012
 	First public version of String::Lookup.

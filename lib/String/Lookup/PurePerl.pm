@@ -2,19 +2,24 @@ package String::Lookup::PurePerl;   # fake
 package String::Lookup;
 
 # version info
-$VERSION= '0.01';
+$VERSION= '0.02';
 
 # make sure we're strict and verbose as possible
 use strict;
 use warnings;
 
 # constants we need
-use constant OFFSET    => 0;
-use constant INCREMENT => 1;
-use constant THEHASH   => 2;
-use constant THELIST   => 3;
-use constant FLUSH     => 4;
-use constant TODO      => 5;
+use constant OFFSET    => 0;  # initial / current offset
+use constant INCREMENT => 1;  # increment value between ID's
+use constant THEHASH   => 2;  # hash ref with string -> id mapping
+use constant THELIST   => 3;  # list ref with id -> string mapping
+use constant INDEX     => 4;  # keys() index
+use constant FLUSH     => 5;  # code to flush
+use constant TODO      => 6;  # id's added
+use constant AUTOFLUSH => 7;  # code 
+
+# modules that we need
+use Scalar::Util qw( reftype );
 
 # synonyms 
 do {
@@ -44,6 +49,7 @@ sub STORE  { die "Cannot assign values to a lookup hash"    } #STORE
 
 sub TIEHASH {
     my ( $class, %param )= @_;
+    my @errors;
 
     # create object
     my $self= bless [], $class;
@@ -56,7 +62,9 @@ sub TIEHASH {
     if ( my $init= delete $param{init} ) {
 
         # fill the hash
-        my $hash= $self->[THEHASH]= $init->();
+        my $hash= $self->[THEHASH]= reftype($init) eq 'HASH'
+          ? $init
+          : $init->();
 
         # make sure the list is set up as well
         my @list;
@@ -73,8 +81,35 @@ sub TIEHASH {
 
     # do we flush?
     $self->[FLUSH]= delete $param{flush} if exists $param{flush};
+    if ( my $autoflush= delete $param{autoflush} ) {
 
-    my @errors;
+        # huh?
+        if ( !$self->[FLUSH] ) {
+            push @errors, "Doesn't make sense to autoflush without flush";
+        }
+
+        # autoflushing by seconds
+        elsif ( $autoflush =~ m#^([0-9]+)s$# ) {
+            my $seconds= $1;
+            my $epoch=   time + $seconds;
+            $self->[AUTOFLUSH]= sub {
+                $epoch += $seconds, shift->flush if time >= $epoch;
+            };
+        }
+
+        # autoflushing by number of new ID's
+        elsif ( $autoflush =~ m#^[0-9]+$# ) {
+            $self->[AUTOFLUSH]= sub {
+                $_[0]->flush if @{ $_[0]->[TODO] } == $autoflush;
+            };
+        }
+
+        # huh?
+        else {
+            push @errors, "Don't know what to do with autoflush '$autoflush'";
+        }
+    }
+
     # huh?
     if ( my @huh= sort keys %param ) {
         push @errors, "Don't know what to do with: @huh";
@@ -100,11 +135,21 @@ sub FETCH {
     if ( ref $_[0] ) {
         return $self->[THEHASH]->{ ${ $_[0] } } || do {
 
-            # need to add to the hash
+            # store string and index
             my $index= $self->[OFFSET] += $self->[INCREMENT];
-            $self->[TODO] .= pack 'w', $index if $self->[FLUSH];
-            $self->[THELIST]->[$index]= ${ $_[0] };
-            return $self->[THEHASH]->{ ${ $_[0] } }= $index;
+            $self->[THEHASH]->{ 
+              $self->[THELIST]->[$index]= ${ $_[0] } # premature optimization
+            }= $index;
+
+            # flushing
+            return $index if !$self->[FLUSH];
+            push @{ $self->[TODO] }, $index;
+
+            # autoflushing
+            return $index if !$self->[AUTOFLUSH];
+            $self->[AUTOFLUSH]->($self);
+
+            return $index;
         };
     }
 
@@ -133,11 +178,18 @@ sub EXISTS {
 # OUT: 1 first key
 
 sub FIRSTKEY {
+    my $self= shift;
 
-     # reset the keys on the underlying hash
-     my $keys= keys %{ $_[0]->[THEHASH] };
+    # initializations
+    my $index= $self->[INDEX]= 0;
+    my $list=  $self->[THELIST];
 
-     return each %{ $_[0]->[THEHASH] };
+    # find the next
+    $list->[$index] and $self->[INDEX]= $index and return $list->[$index]
+      while ++$index < @{$list};
+
+    # alas
+    return undef;
 } #FIRSTKEY
 
 #-------------------------------------------------------------------------------
@@ -146,7 +198,20 @@ sub FIRSTKEY {
 #  IN: 1 underlying object
 # OUT: 1 next key
 
-sub NEXTKEY { each %{ $_[0]->[THEHASH] } } #NEXTKEY
+sub NEXTKEY {
+    my $self= shift;
+
+    # initializations
+    my $index= $self->[INDEX];
+    my $list=  $self->[THELIST];
+
+    # find the next
+    $list->[$index] and $self->[INDEX]= $index and return $list->[$index]
+      while ++$index < @{$list};
+
+    # alas
+    return undef;
+} #NEXTKEY
 
 #-------------------------------------------------------------------------------
 # SCALAR
@@ -164,6 +229,7 @@ sub SCALAR { $_[0]->[THEHASH] } #SCALAR
 # flush (and DESTROY and UNTIE)
 #
 #  IN: 1 underlying object
+# OUT: 1 return value from flush sub
 
 sub flush {
     my $self= shift;
@@ -174,9 +240,9 @@ sub flush {
 
     # perform the flush
     undef $self->[TODO]
-      if $flush->( $self->[THELIST], [ unpack 'w*', $todo ] );
+      if my $return= $flush->( $self->[THELIST], $todo );
 
-    return;
+    return $return;
 } #flush
 
 #-------------------------------------------------------------------------------
