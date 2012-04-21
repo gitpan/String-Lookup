@@ -2,7 +2,7 @@ package String::Lookup::PurePerl;   # fake
 package String::Lookup;
 
 # version info
-$VERSION= '0.02';
+$VERSION= '0.03';
 
 # make sure we're strict and verbose as possible
 use strict;
@@ -58,6 +58,10 @@ sub TIEHASH {
     $self->[OFFSET]=    delete $param{offset}    || 0;
     $self->[INCREMENT]= delete $param{increment} || 1;
 
+    # sanity check
+    push @errors, "Offset may not be negative"    if $self->[OFFSET]    < 0;
+    push @errors, "Increment may not be negative" if $self->[INCREMENT] < 0;
+
     # need to initialize the lookup hash
     if ( my $init= delete $param{init} ) {
 
@@ -69,7 +73,7 @@ sub TIEHASH {
         # make sure the list is set up as well
         my @list;
         $list[ $hash->{$_} ]= $_ foreach keys %{$hash};
-        $self->[OFFSET]=  $#list;
+        $self->[OFFSET]=  $#list if $#list > $self->[OFFSET];
         $self->[THELIST]= \@list;
     }
 

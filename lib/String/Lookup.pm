@@ -1,7 +1,7 @@
 package String::Lookup;
 
 # version info
-$VERSION= '0.02';
+$VERSION= '0.03';
 
 # make sure we're strict and verbose as possible
 use strict;
@@ -26,9 +26,11 @@ String::Lookup - convert strings to ID's authoritatively and vice-versa
  use String::Lookup;
 
  tie my %lookup, 'String::Lookup',
-   init      => $what,    # hash / code ref to initialize hash with
-   flush     => sub { },  # code to flush hash with
-   autoflush => $when,    # when to automatically flush, default: at destruction
+   init      => $what,      # hash / code ref to initialize hash with
+   flush     => sub { },    # code to flush hash with, default: don't flush
+   autoflush => $when,      # when to automatically flush, default: destruction
+   offset    => $offset,    # start counting from, default: 0
+   increment => $increment, # space between ID's, default: 1
  };
 
  my $id= $lookup{ \$string }; # strings must be indicated by reference
@@ -40,7 +42,7 @@ String::Lookup - convert strings to ID's authoritatively and vice-versa
 
 =head1 VERSION
 
-This documentation describes version 0.02.
+This documentation describes version 0.03.
 
 =head1 DESCRIPTION
 
@@ -50,6 +52,11 @@ accomplished by B<passing a reference to the string> as the key in the tied
 hash.  If a reference is seen, it is assumed this is a string -> ID lookup
 (even if the string only consists of a number).  If a non-reference is passed,
 then it is assumed to be the numeric ID for which the string should be returned.
+
+New ID's are assigned by taking the current offset value (by default starting
+at B<0>) and adding the increment value to that (by default B<1>), and
+remembering that as the next offset value.  Offset and increment value can only
+be set at C<tie> time.
 
 =head1 INITIALIZATION
 
@@ -62,7 +69,7 @@ then it is assumed to be the numeric ID for which the string should be returned.
  };
 
 The C<init> parameter indicates how the underlying hash should be initialized.
-It can either be a a hash reference (that will be used directly) or a  code
+It can either be a a hash reference (that will be used directly) or a code
 reference that is supposed to return a hash reference that should be used as
 the underlying hash in which string to numerical ID mapping is stored.
 
@@ -107,6 +114,8 @@ since the last flush (if any).
 
 =back
 
+It is supposed to return a boolean indicating whether the flush was successful.
+
 A simple implementation, that assumes strings will never contain newlines,
 could be:
 
@@ -114,7 +123,7 @@ could be:
      my ( $strings, $ids )= @_;
      open my $handle, '>>', 'file.lookup' or die $!;
      print $handle, "$_:$strings->[$_]\n" foreach @{$ids};
-     close $handle;
+     return close $handle;
  } #simple_flush
 
 Flushing the data can also be done at any one time by calling the C<flush>
@@ -189,6 +198,30 @@ ID.  Like so:
 Please note that the lookup in the underlying hash should be made with the
 string, and the lookup in the tied hash with the B<reference to> the string!
 
+=head1 RANGE OF ID's
+
+ tie my %lookup, 'String::Lookup',
+   offset    => $offset,    # start counting from, default: 0
+ };
+
+In some cases you want the ID's to be issued to start at a certain value
+(rather than starting from 1).  The C<offset> parameter can be used for this.
+
+=head1 SPACE BETWEEN ID's
+
+ tie my %lookup, 'String::Lookup',
+   increment => $increment, # space between ID's, default: 1
+ };
+
+In some cases you want ID's to be spaced.  For instance in a multi datacenter
+environment, where each data center has its own set of ID's that need to be
+merged in a single persistent backend at some point in time.  In such a
+situation, one can specify the C<increment> parameter.  If one expects to have
+a maximum of 10 data centers, one could specify an increment of C<10>, and a
+different C<offset> for each data center.  This would ensure that for each ID
+there would always be 1 string, at the expense of the added complexity that
+for each string, there could possibly be multiple ID's.
+
 =head1 BACKGROUND
 
 At a former $client, a large amount of (similar) string data is processed
@@ -203,14 +236,27 @@ basically either a hash lookup, or an index on an array.  This would be
 different if we could have a daemon like process whose function it would only
 be to assign numeric ID's to strings without needing a database backend.
 
-This module provides the basic interface mechanism for such a daemon.
+This module provides the basic interface mechanism for such a daemon.  It can
+of course also be used for more mundane usage.
+
+=head1 WHY REFERENCE TO STRING?
+
+To keep the interface of string to ID and ID to string as simple as possible,
+a cunning way was needed to differentiate between strings and ID's.  Since
+some strings may consist of just a number (think HTTP status codes), it is
+not a good idea to use that as a differentiating factor.
+
+Since strings can become very large, copying around should be prevented.  By
+specifying a reference to a string to do string to ID mapping, we kill two
+birds with one stone: it is an unambiguous way to find out that we want string
+to ID mapping B<and> we don't copy the string around as much.
 
 =head1 IMPLEMENTATION
 
 At the moment there is only a pure Perl reference implementation available.
 This has the disadvantage of being slower than it could possibly be made.  But
 it works B<now>.  It is the intention of providing a faster XS interface at a
-later point in time.
+later point in time.  Patches welcome!
 
 =head1 REQUIRED MODULES
 

@@ -1,3 +1,7 @@
+0.03	21 April 2012
+	Documented and tested the "offset" and "increment" parameters.  Plus
+	some small code and pod tweaks.
+
 0.02	21 April 2012
 	Order of keys is now the order in which they were added.  This now
 	bypasses the normal way of generating keys of a hash.

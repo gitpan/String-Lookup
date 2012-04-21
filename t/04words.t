@@ -46,7 +46,7 @@ SKIP : {
         $ro_hash= %hash;
 
         # do our lookup
-        diag "Reading strings...";
+        diag "Reading strings from $dictwords...";
         my $id;
         my $string;
         chomp($string), $seen++, $id= $ro_hash->{$string} || $hash{ \$string }
@@ -99,7 +99,7 @@ SKIP : {
           flush => sub { die "No flushing should happen" };
 
         # do our lookup
-        diag "Reading strings...";
+        diag "Reading strings from $dictwords...";
         my $id;
         my $string;
         chomp($string), $reseen++, $id= $hash{ \$string }
@@ -129,7 +129,7 @@ SKIP : {
         $ro_hash= %hash;
 
         # do our lookup
-        diag "Reading strings...";
+        diag "Reading strings from $dictwords...";
         my $id;
         my $string;
         chomp($string), $reseen++, $id= $ro_hash->{$string} || $hash{ \$string }
