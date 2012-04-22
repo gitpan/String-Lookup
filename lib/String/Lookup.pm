@@ -1,7 +1,7 @@
 package String::Lookup;
 
 # version info
-$VERSION= '0.03';
+$VERSION= '0.04';
 
 # make sure we're strict and verbose as possible
 use strict;
@@ -42,7 +42,7 @@ String::Lookup - convert strings to ID's authoritatively and vice-versa
 
 =head1 VERSION
 
-This documentation describes version 0.03.
+This documentation describes version 0.04.
 
 =head1 DESCRIPTION
 

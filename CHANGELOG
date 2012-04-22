@@ -1,3 +1,12 @@
+0.04	22 April 2012
+	Reduced dependency on Perl to 5.10.0 (instead of 5.14.0).  Seems to
+	pass fine with this older Perl.
+
+	Fixed problem if hash would be filled with ID values not matching the
+	offset / increment given at creation.  This may happen if a hash is
+	filled from a database that has ID's merged with several different
+	offsets.
+
 0.03	21 April 2012
 	Documented and tested the "offset" and "increment" parameters.  Plus
 	some small code and pod tweaks.

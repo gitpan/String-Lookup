@@ -2,7 +2,7 @@ package String::Lookup::PurePerl;   # fake
 package String::Lookup;
 
 # version info
-$VERSION= '0.03';
+$VERSION= '0.04';
 
 # make sure we're strict and verbose as possible
 use strict;
@@ -73,8 +73,14 @@ sub TIEHASH {
         # make sure the list is set up as well
         my @list;
         $list[ $hash->{$_} ]= $_ foreach keys %{$hash};
-        $self->[OFFSET]=  $#list if $#list > $self->[OFFSET];
         $self->[THELIST]= \@list;
+
+        # make sure offset is correct with potentially incorrectly filled hash
+        $self->[OFFSET]=
+          $#list +
+          $#list          % $self->[INCREMENT] +
+          $self->[OFFSET] % $self->[INCREMENT]
+          if $#list > $self->[OFFSET];
     }
 
     # start afresh
