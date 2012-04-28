@@ -1,3 +1,9 @@
+0.05	28 April 2012
+	Really reduced dependency on Perl to 5.10.0.
+
+	Added support for persistent backends, and the FlatFile and DBI
+	backends.  No tests for the DBI backend just yet, soon!
+
 0.04	22 April 2012
 	Reduced dependency on Perl to 5.10.0 (instead of 5.14.0).  Seems to
 	pass fine with this older Perl.

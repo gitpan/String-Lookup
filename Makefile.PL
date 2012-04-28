@@ -1,4 +1,4 @@
-require 5.014;
+require 5.010;
 use strict;
 use ExtUtils::MakeMaker;
 eval "use Devel::Required";

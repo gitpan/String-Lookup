@@ -2,7 +2,7 @@ package String::Lookup::PurePerl;   # fake
 package String::Lookup;
 
 # version info
-$VERSION= '0.04';
+$VERSION= '0.05';
 
 # make sure we're strict and verbose as possible
 use strict;
@@ -57,6 +57,7 @@ sub TIEHASH {
     # overrides
     $self->[OFFSET]=    delete $param{offset}    || 0;
     $self->[INCREMENT]= delete $param{increment} || 1;
+    my $storage=        delete $param{storage};
 
     # sanity check
     push @errors, "Offset may not be negative"    if $self->[OFFSET]    < 0;
@@ -64,23 +65,11 @@ sub TIEHASH {
 
     # need to initialize the lookup hash
     if ( my $init= delete $param{init} ) {
+        push @errors, "Cannot have 'init' as well as a 'storage' parameter"
+          if $storage;
 
         # fill the hash
-        my $hash= $self->[THEHASH]= reftype($init) eq 'HASH'
-          ? $init
-          : $init->();
-
-        # make sure the list is set up as well
-        my @list;
-        $list[ $hash->{$_} ]= $_ foreach keys %{$hash};
-        $self->[THELIST]= \@list;
-
-        # make sure offset is correct with potentially incorrectly filled hash
-        $self->[OFFSET]=
-          $#list +
-          $#list          % $self->[INCREMENT] +
-          $self->[OFFSET] % $self->[INCREMENT]
-          if $#list > $self->[OFFSET];
+        $self->init( reftype($init) eq 'HASH' ? $init : $init->() );
     }
 
     # start afresh
@@ -89,8 +78,57 @@ sub TIEHASH {
         $self->[THELIST]= [];
     }
 
+    # need to have our own flush
+    if ( my $flush= delete $param{flush} ) {
+        push @errors, "Cannot have 'flush' as well as a 'storage' parameter"
+          if $storage;
+        $self->[FLUSH]= $flush;
+    }
+
+    # we have a persistent backend
+    if ($storage) {
+        my $tag=  delete $param{tag};
+        my $fork= delete $param{fork};
+
+        # make sure we have the code
+        my $storage_class= $storage =~ m#::# ? $storage : "${class}::$storage";
+        eval "use $storage_class; 1" or die $@;
+
+        # set up the options hash for the closures
+        my %options= ( tag => $tag ); # in closure
+        foreach my $name ( $storage_class->parameters_ok ) {
+            $options{$name}= delete $param{$name} if exists $param{$name};
+        }
+
+        # some sanity checks
+        push @errors, "Must specify a 'tag'" if !defined $tag or !length $tag;
+
+        # perform the initialization
+        $self->init( $storage_class->init( \%options ) );
+
+        # need to fork for a flush
+        if ($fork) {
+            $self->[FLUSH]= sub {
+
+                # in the parent
+                my $pid= fork;
+                return 1 if $pid;
+                return 0 if !defined $pid;
+
+                # in the child process
+                exit !$storage_class->flush( \%options, @_ );
+            };
+        }
+
+        # need to flush in this process
+        else {
+            $self->[FLUSH]= sub {
+                return $storage_class->flush( \%options, @_ );
+            };
+        }
+    }
+
     # do we flush?
-    $self->[FLUSH]= delete $param{flush} if exists $param{flush};
     if ( my $autoflush= delete $param{autoflush} ) {
 
         # huh?
@@ -254,6 +292,33 @@ sub flush {
 
     return $return;
 } #flush
+
+#-------------------------------------------------------------------------------
+# init
+#
+#  IN: 1 underlying object
+#      2 hash ref to start with
+
+sub init {
+    my ( $self, $hash )= @_;
+
+    # set the internal hash
+    $self->[THEHASH]= $hash;
+
+    # make sure the internal list is set up as well
+    my @list;
+    $list[ $hash->{$_} ]= $_ foreach keys %{$hash};
+    $self->[THELIST]= \@list;
+
+    # make sure offset is correct with potentially incorrectly filled hash
+    $self->[OFFSET]=
+      $#list +
+      $#list          % $self->[INCREMENT] +
+      $self->[OFFSET] % $self->[INCREMENT]
+      if $#list > $self->[OFFSET];
+
+    return;
+} #init
 
 #-------------------------------------------------------------------------------
 

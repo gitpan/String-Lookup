@@ -1,7 +1,7 @@
 package String::Lookup;
 
 # version info
-$VERSION= '0.04';
+$VERSION= '0.05';
 
 # make sure we're strict and verbose as possible
 use strict;
@@ -26,11 +26,19 @@ String::Lookup - convert strings to ID's authoritatively and vice-versa
  use String::Lookup;
 
  tie my %lookup, 'String::Lookup',
-   init      => $what,      # hash / code ref to initialize hash with
-   flush     => sub { },    # code to flush hash with, default: don't flush
    autoflush => $when,      # when to automatically flush, default: destruction
    offset    => $offset,    # start counting from, default: 0
    increment => $increment, # space between ID's, default: 1
+
+   # persistent storage backend, instead of "init" and "flush"
+   storage => $storage, # how to store, e.g. 'FlatFile'
+   tag     => $tag,     # tag to distinguish between logical hashes
+   fork    => 1,        # fork for each flush, default: no
+   ...                  # other persistent backend type specific parameters
+
+   # or set up your own "init" and "flush"
+   init      => $what,      # hash / code ref to initialize hash with
+   flush     => sub { },    # code to flush hash with, default: don't flush
  };
 
  my $id= $lookup{ \$string }; # strings must be indicated by reference
@@ -42,7 +50,7 @@ String::Lookup - convert strings to ID's authoritatively and vice-versa
 
 =head1 VERSION
 
-This documentation describes version 0.04.
+This documentation describes version 0.05.
 
 =head1 DESCRIPTION
 
@@ -58,82 +66,76 @@ at B<0>) and adding the increment value to that (by default B<1>), and
 remembering that as the next offset value.  Offset and increment value can only
 be set at C<tie> time.
 
-=head1 INITIALIZATION
+=head1 PERSISTENCE
 
  tie my %lookup, 'String::Lookup',
-   init  => $hash_ref,    # hash ref to use as underlying hash
+   storage => $storage, # how to store, e.g. 'FlatFile'
+   tag     => $tag,     # tag to distinguish between logical hashes
+   fork    => 1,        # fork for each flush, default: no
+   ...                  # other persistent backend type specific parameters
  };
 
- tie my %lookup, 'String::Lookup',
-   init  => sub { ... },  # code to initialize hash with
- };
+Generally, you want lookup hashes to have persistence across process runs.
+You can indicate this with the C<storage> parameter.  It indicates which
+persistent storage backend should be used.  If specified, it replaces the
+C<init> and C<flush> parameters.
 
-The C<init> parameter indicates how the underlying hash should be initialized.
-It can either be a a hash reference (that will be used directly) or a code
-reference that is supposed to return a hash reference that should be used as
-the underlying hash in which string to numerical ID mapping is stored.
-
-A simple implementation of the code reference, that assumes strings will never
-contain newlines, could be:
-
- sub simple_init {
-     my %hash;
-     open my $handle, '<', 'file.lookup' or die $!;
-     while ( <$handle> ) {
-         my ( $id, $string )= split ':', $_, 2;
-         $hash{$id}= $string;
-     }
-     close $handle;
-     return \%hash;
- } #simple_init
-
-=head1 FLUSHING
-
- tie my %lookup, 'String::Lookup',
-   flush => sub { my ( $strings, $ids )= @_ },  # code to flush hash with
- };
-
-The C<flush> parameter indicates a code reference that will be called to
-save strings that have been added since the hash was created / initialized,
-or the previous time the tied hash was flushed.  By default, the hash is only
-flushed when being C<untie>d, or when the tied hash is destroyed.
-
-It is supposed to accept two parameters:
+At least two parameters need to be specified to indicate where the persistent
+storage of the lookup hash is located: C<storage> and C<tag>.  One parameter
+is optional: C<fork>.  Other parameters may be needed for a given type of
+persistent backend, please consult the documentation of the associated backend
+module.
 
 =over 4
 
-=item 1 list reference for id -> string mapping
+=item storage
 
-The first parameter is a list reference to the underlying array that is used
-for the ID to string mapping.
+ tie my %lookup, 'String::Lookup',
+   storage => $storage, # how to store, e.g. 'FlatFile'
+ };
 
-=item 2 list reference to ID's that were added
+Indicate the type of persistent storage to be used.  It can either be a single
+word (in which case it will be appended to the class name, e.g. C<FlatFile>
+becomes L<String::Lookup::FlatFile>) or a fully qualified class name (in which
+case it is expected to supply the C<init> and C<flush> interface for persistent
+storage backends).
 
-The second parameter is a list reference to the numeric ID's that were added
-since the last flush (if any).
+The L<Class::Lookup> distribution contains the L<String::Lookup::<FlatFile>
+and C<String::Lookup::DBI> persistent backend modules.
+
+=item tag
+
+ tie my %lookup, 'String::Lookup',
+   tag     => $tag,     # tag to distinguish between logical hashes
+ };
+
+Indicate the logical name of the lookup hash.  For the C<FlatFile> backend
+this name is used as the filename in which to store.  For the C<DBI>
+backend, this is the name of the table in which to store.  Other backends
+may use the tag in different ways.
+
+=item fork
+
+ tie my %lookup, 'String::Lookup',
+   fork    => 1,        # fork for each flush, default: no
+ };
+
+Indicate whether or not the flushing process (be it automatically or not)
+should take place in a forked process or not.  Doing the flush in a forked
+process has the advantage that lookups will continue almost immediately,
+rather than having to wait for the storage requests to come back.  It currently
+has the disadvantage that it will hide any problems in the flushing process.
+
+=item (other, storage dependent parameters)
+
+Any other acceptable parameters, should be returned by the class method
+C<parameters_ok> on the storage class.  Any other parameters will be considered
+to be an error and cause an exception.
+
+See L<"METHODS IN STORAGE MODULE"> for more information about creating your
+own persistent storage module.
 
 =back
-
-It is supposed to return a boolean indicating whether the flush was successful.
-
-A simple implementation, that assumes strings will never contain newlines,
-could be:
-
- sub simple_flush {
-     my ( $strings, $ids )= @_;
-     open my $handle, '>>', 'file.lookup' or die $!;
-     print $handle, "$_:$strings->[$_]\n" foreach @{$ids};
-     return close $handle;
- } #simple_flush
-
-Flushing the data can also be done at any one time by calling the C<flush>
-method on the object under the C<tie> implementation.  This object can be
-obtained with the C<tied> function:
-
-  ( tied %hash )->flush;
-
-Please note that it is generally a bad idea to keep a reference to the
-underlying object around.  See C<The "untie" Gotcha> in L<perltie>.
 
 =head1 AUTOMATIC FLUSHING
 
@@ -221,6 +223,131 @@ a maximum of 10 data centers, one could specify an increment of C<10>, and a
 different C<offset> for each data center.  This would ensure that for each ID
 there would always be 1 string, at the expense of the added complexity that
 for each string, there could possibly be multiple ID's.
+
+=head1 INITIALIZATION
+
+ tie my %lookup, 'String::Lookup',
+   init  => $hash_ref,    # hash ref to use as underlying hash
+ };
+
+ tie my %lookup, 'String::Lookup',
+   init  => sub { ... },  # code to initialize hash with
+ };
+
+The C<init> parameter indicates how the underlying hash should be initialized.
+It should only be used if you do B<not> have a persistent backend for your
+lookup hash.  It can either be a a hash reference (that will be used directly)
+or a code reference that is supposed to return a hash reference that should be
+used as the underlying hash in which string to numerical ID mapping is stored.
+
+A simple implementation of the code reference, that assumes strings will never
+contain newlines, could be:
+
+ sub simple_init {
+     my %hash;
+     open my $handle, '<', 'file.lookup' or die $!;
+     while ( <$handle> ) {
+         my ( $id, $string )= split ':', $_, 2;
+         $hash{$id}= $string;
+     }
+     close $handle;
+     return \%hash;
+ } #simple_init
+
+=head1 FLUSHING
+
+ tie my %lookup, 'String::Lookup',
+   flush => sub { my ( $strings, $ids )= @_ },  # code to flush hash with
+ };
+
+The C<flush> parameter indicates a code reference that will be called to
+save strings that have been added since the hash was created / initialized,
+or the previous time the tied hash was flushed.  It should only be used if
+you do B<not> have a persistent backend for your lookup hash.  By default,
+the hash is only flushed when being C<untie>d, or when the tied hash is
+destroyed.
+
+It is supposed to accept two parameters:
+
+=over 4
+
+=item 1 list reference for ID -> string mapping
+
+The first parameter is a list reference to the underlying array that is used
+for the ID to string mapping.
+
+=item 2 list reference to ID's that were added
+
+The second parameter is a list reference to the numeric ID's that were added
+since the last flush (if any).
+
+=back
+
+It is supposed to return a boolean indicating whether the flush was successful.
+
+A simple implementation, that assumes strings will never contain newlines,
+could be:
+
+ sub simple_flush {
+     my ( $strings, $ids )= @_;
+     open my $handle, '>>', 'file.lookup' or die $!;
+     print $handle, "$_:$strings->[$_]\n" foreach @{$ids};
+     return close $handle;
+ } #simple_flush
+
+Flushing the data can also be done at any one time by calling the C<flush>
+method on the object under the C<tie> implementation.  This object can be
+obtained with the C<tied> function:
+
+  ( tied %hash )->flush;
+
+Please note that it is generally a bad idea to keep a reference to the
+underlying object around.  See C<The "untie" Gotcha> in L<perltie>.
+
+=head1 METHODS IN STORAGE MODULE
+
+=head2 flush
+
+ sub flush {
+     my ( $options, $strings, $ids )= @_;
+     ...
+     return $ok;
+ } #flush
+
+Perform the actual flush to the storage of this module.  The first parameter
+is a hash reference with at least the C<tag> parameter, and any other
+parameters that are specified with the L<parameters_ok> method.
+
+The other parameters are the same as the parameters to the code ref that is
+needed with the C<flush> parameter when tieing a hash with L<String::Lookup>
+(currently a list reference with strings, and a list ref with ID's to be
+flushed)..
+
+Like the C<flush> code reference parameter when tying a hash, it is
+expected to return a boolean, indicating whether the write to permanent
+storage was successful or not.
+
+=head2 init
+
+ sub init {
+     my ($options)= @_;
+     ...
+     return $hash;
+ } #init
+
+Perform the actions needed to initialize the underlying hash.  The first
+parameter is a hash reference with at least the C<tag> parameter, and any
+other parameters that are specified with the L<parameters_ok> method.
+
+Like the C<init> code reference parameter when tying a hash, it is expected
+to return a hash reference to be used as the underlying hash.
+
+=head2 parameters_ok
+
+ my @ok= $class->parameters_ok;
+
+Return a list with the names of the parameters that are understandable by the
+storage class.  Must be provided.
 
 =head1 BACKGROUND
 
