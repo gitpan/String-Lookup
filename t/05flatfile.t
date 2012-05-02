@@ -6,7 +6,7 @@ BEGIN {				# Magic Perl CORE pragma
     }
 }
 
-use Test::More tests => 5 + 6 + 5 + 6;
+use Test::More tests => 2 * ( 5 + 6 + 5 + 6 );
 use strict;
 use warnings;
 
@@ -24,32 +24,44 @@ my $foobar= join ",", $foo, $bar;
 my $ok_list;
 my $tag=      'test_tag';
 my $filename= "$tag.lookup";
-my @storage= ( storage => 'FlatFile', tag => $tag, dir => '.' );
+my @storage;
 
-# set up the hash for flush at destruction
-do {
-    tie my %hash, 'String::Lookup',
-      @storage;
-    ok( -e $filename, 'does the flat file exist' );
-    is( $hash{ \$foo }, 1, "first lookup/flush" );
-    is( $hash{ \$bar }, 2, "second lookup/flush" );
-    is( -s $filename, 0, 'file right length before destruction' );
-};
-is( -s $filename, 20, 'file right length after destruction' );
-check_read('flush at destruction');
+foreach (
+    [ '.', undef, "from environment" ], 
+    [ undef, '.', "from parameter" ], 
+) {
+    my ( $env, $param, $type )= @{$_};
+    @storage= ( storage => 'FlatFile', tag => $tag );
 
-# set up the hash for autoflush every id
-do {
-    tie my %hash, 'String::Lookup',
-      autoflush => 1,   # every new ID should flush
-      @storage;
-    ok( -e $filename, 'does the flat file exist' );
-    is( $hash{ \$foo }, 1, "first lookup/flush" );
-    is( -s $filename, 10, 'file right length after first lookup/flush' );
-    is( $hash{ \$bar }, 2, "second lookup/flush" );
-    is( -s $filename, 20, 'file right length after second lookup/flush' );
-};
-check_read('autoflush every id');
+    # set up
+    $ENV{STRING_LOOKUP_FLATFILE_DIR}= $env;
+    push @storage, ( dir => $param ) if $param;
+
+    # set up the hash for flush at destruction
+    do {
+        tie my %hash, 'String::Lookup',
+          @storage;
+        ok( -e $filename, 'does the flat file exist' );
+        is( $hash{ \$foo }, 1, "first lookup/flush" );
+        is( $hash{ \$bar }, 2, "second lookup/flush" );
+        is( -s $filename, 0, 'file right length before destruction' );
+    };
+    is( -s $filename, 20, 'file right length after destruction' );
+    check_read("flush at destruction $type");
+
+    # set up the hash for autoflush every id
+    do {
+        tie my %hash, 'String::Lookup',
+          autoflush => 1,   # every new ID should flush
+          @storage;
+        ok( -e $filename, 'does the flat file exist' );
+        is( $hash{ \$foo }, 1, "first lookup/flush" );
+        is( -s $filename, 10, 'file right length after first lookup/flush' );
+        is( $hash{ \$bar }, 2, "second lookup/flush" );
+        is( -s $filename, 20, 'file right length after second lookup/flush' );
+    };
+    check_read("autoflush every id $type");
+}
 
 #-------------------------------------------------------------------------------
 # read from flat file

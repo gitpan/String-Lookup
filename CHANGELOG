@@ -1,3 +1,14 @@
+0.07	2 May 2012
+	Oops, had documented the environment variable feature for FlatFile
+	but not implemented, nor tested it.  Now fixed.
+
+	The words test was not cleaning up after itself, now fixed.
+
+	Work started on AsyncDBI backend storage module, no tests or
+	functionality just yet.
+
+	Fixed automatic version setting in all source files by String::Lookup.
+
 0.06	29 April 2012
 	Added some more flatfile tests.
 

@@ -1,7 +1,7 @@
 package String::Lookup;
 
 # version info
-$VERSION= '0.06';
+$VERSION= '0.07';
 
 # make sure we're strict and verbose as possible
 use strict;

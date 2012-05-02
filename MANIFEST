@@ -3,6 +3,7 @@ CHANGELOG
 README
 Makefile.PL
 lib/String/Lookup.pm
+lib/String/Lookup/AsyncDBI.pm
 lib/String/Lookup/DBI.pm
 lib/String/Lookup/FlatFile.pm
 lib/String/Lookup/PurePerl.pm

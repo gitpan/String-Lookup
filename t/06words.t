@@ -7,7 +7,7 @@ BEGIN {				# Magic Perl CORE pragma
 }
 
 my $tests;
-BEGIN { $tests= 2 + 1 + 1 + 1 +2 + 3 } #BEGIN;
+BEGIN { $tests= 2 + 1 + 1 + 1 + 2 + 3 + 1 } #BEGIN;
 
 use Test::More tests => $tests;
 use strict;
@@ -213,4 +213,7 @@ SKIP : {
     diag sprintf "\nSaw %d strings from flatfile in %.2f seconds using %.2f CPU seconds",
       $seen, $clock, $cpu;
     diag sprintf "That's %.2f ID's / second", $seen / $clock;
+
+    # clean up
+    is( unlink($filename), 1, 'clean up' );
 } #SKIP

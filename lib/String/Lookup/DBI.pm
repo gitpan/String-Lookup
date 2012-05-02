@@ -1,7 +1,7 @@
 package String::Lookup::DBI;
 
 # version info
-$VERSION= '0.06';
+$VERSION= '0.07';
 
 # make sure we're strict and verbose as possible
 use strict;
@@ -111,7 +111,7 @@ String::Lookup::DBI - flush String::Lookup using DBI compatible database handle
 
 =head1 VERSION
 
-This documentation describes version 0.01.
+This documentation describes version 0.07.
 
 =head1 DESCRIPTION
 

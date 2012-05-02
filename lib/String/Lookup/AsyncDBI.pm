@@ -1,4 +1,4 @@
-package String::Lookup::FlatFile;
+package String::Lookup::AsyncDBI;
 
 # version info
 $VERSION= '0.07';
@@ -38,7 +38,13 @@ sub flush {
 
     # initializations
     local $_;
-    my $handle= $options->{handle};
+    my $filename= "$options->{tagdir}/" . time . ".lookup";
+    
+    # open file for flushing (again)
+    open my $handle, '>>', $filename
+      or die "Could not open file '$filename' for appending: $!";
+    binmode $handle
+      or die "Could not binmode on appending to '$filename': $!";
 
     # write all ID's
     foreach my $id ( @$ids ) {
@@ -49,7 +55,7 @@ sub flush {
     }
 
     # make sure it's on disk
-    die "Could not flush data: $!" if !defined $handle->flush;
+    die "Could not flush data: $!" if !$handle->close;
 
     return 1;
 } #flush
@@ -64,22 +70,21 @@ sub flush {
 sub init {
     my ( $class, $options )= @_;
 
-    # defaults
-    $options->{dir} ||= $ENV{STRING_LOOKUP_FLATFILE_DIR};
-
     # sanity check
     my @errors;
     push @errors, "Must have a 'dir' specified" if !$options->{dir};
     push @errors, "Must have a 'tag' specified" if !$options->{tag};
+    my $tagdir= $options->{tagdir}= "$options->{dir}/$options->{tag}";
+    mkdir $tagdir
+      or push @errors, "Could not make tagdir '$tagdir': $!";
+
+    # too bad
     die join "\n", "Found the following problems with init:", @errors
       if @errors;
 
-    # initializations
+    # set up reading of all files in tagdir
     my %hash;
-    my $filename= "$options->{dir}/$options->{tag}.lookup";
-
-    # set up reading of file if there is one
-    if ( -s $filename ) {
+    foreach my $filename ( grep { -s } glob "$tagdir/*.lookup" ) {
         open my $handle, '<', $filename
           or die "Could not open file '$filename' for reading: $!";
         binmode $handle
@@ -109,13 +114,6 @@ sub init {
           or die "Error flushing data to disk: $!";
     }
 
-    # open file for flushing (again)
-    open my $handle, '>>', $filename
-      or die "Could not open file '$filename' for appending: $!";
-    binmode $handle
-      or die "Could not binmode on appending to '$filename': $!";
-    $options->{handle}= $handle;
-
     return \%hash;
 } #init
 
@@ -133,7 +131,7 @@ __END__
 
 =head1 NAME
 
-String::Lookup::FlatFile - flush String::Lookup to flat files
+String::Lookup::AsyncDBI - flush String::Lookup to flat files
 
 =head1 SYNOPSIS
 
@@ -142,12 +140,12 @@ String::Lookup::FlatFile - flush String::Lookup to flat files
  tie my %lookup, 'String::Lookup',
 
    # standard persistent storage parameters
-   storage => 'FlatFile', # store in a flat file
-   tag     => $tag,       # name of flat file for this lookup hash
+   storage => 'AsyncDBI', # store in a flat file per epoch
+   tag     => $tag,       # name of directory for this lookup hash
    fork    => 1,          # fork for each flush, default: no
 
-   # parameters specific to 'FlatFile'
-   dir     => $dir,       # directory in which flat files are stored
+   # parameters specific to 'AsyncDBI'
+   dir     => $dir,       # directory in which tag directories are stored
 
    # other parameters for String::Lookup
    ...
@@ -177,8 +175,9 @@ The following additional parameters are provided by this storage class:
    dir     => $dir,       # directory in which flat files are stored
  ;
 
-Indicate the directory in which the lookup hash will be stored in flat files.
-Defaults to the content of the C<STRING_LOOKUP_FLATFILE_DIR> environment
+Indicate the directory in which directories will be created per tag.  The
+actual flat files will be stored in there per second.
+Defaults to the content of the C<STRING_LOOKUP_ASYNC_DIR> environment
 variable.  C<Must be specified> either directly or indirectly with the
 environment variable.
 
