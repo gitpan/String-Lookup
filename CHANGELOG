@@ -1,3 +1,6 @@
+0.06	29 April 2012
+	Added some more flatfile tests.
+
 0.05	28 April 2012
 	Really reduced dependency on Perl to 5.10.0.
 

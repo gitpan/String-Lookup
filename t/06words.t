@@ -7,7 +7,7 @@ BEGIN {				# Magic Perl CORE pragma
 }
 
 my $tests;
-BEGIN { $tests= 2 + 1 + 1 + 1 } #BEGIN;
+BEGIN { $tests= 2 + 1 + 1 + 1 +2 + 3 } #BEGIN;
 
 use Test::More tests => $tests;
 use strict;
@@ -90,7 +90,7 @@ SKIP : {
     $cpu=   sum times;
     $clock= time;
 
-    # provide scope for file handles
+    # unoptimized old strings
     do {
         open my $in,  '<', $dictwords or die "Could not open '$dictwords': $!";
 
@@ -119,7 +119,7 @@ SKIP : {
     $cpu=   sum times;
     $clock= time;
 
-    # provide scope for file handles
+    # optimized old strings
     do {
         open my $in,  '<', $dictwords or die "Could not open '$dictwords': $!";
 
@@ -141,6 +141,76 @@ SKIP : {
     $cpu=   sum(times) - $cpu;
     $clock= time - $clock;
     diag sprintf "\nSaw %d optimized strings in %.2f seconds using %.2f CPU seconds",
+      $seen, $clock, $cpu;
+    diag sprintf "That's %.2f ID's / second", $seen / $clock;
+
+    # flatfile test initializations
+    my $tag=      'words_test';
+    my $filename= "$tag.lookup";
+    my @storage=  ( storage => 'FlatFile', dir => '.', tag => $tag );
+
+    # re-initializations
+    $reseen= 0;
+    $cpu=   sum times;
+    $clock= time;
+
+    # write using flatfile
+    do {
+        open my $in,  '<', $dictwords or die "Could not open '$dictwords': $!";
+
+        tie my %hash, 'String::Lookup',
+          autoflush => 100000,
+          @storage;
+        $ro_hash= %hash;
+
+        # do our lookup
+        diag "Reading strings from $dictwords...";
+        my $id;
+        my $string;
+        chomp($string), $reseen++, $id= $ro_hash->{$string} || $hash{ \$string }
+          while $string= readline $in;
+    };
+    my ( $size, $changed )= ( stat $filename )[ 7,9 ];
+    is( $reseen, $seen, 'same number of strings seen' );
+    ok( $size, 'check if file exists with something in it' );
+
+    # stats
+    $cpu=   sum(times) - $cpu;
+    $clock= time - $clock;
+    diag sprintf "\nSaw %d flatfiled strings in %.2f seconds using %.2f CPU seconds",
+      $seen, $clock, $cpu;
+    diag sprintf "That's %.2f ID's / second", $seen / $clock;
+
+    # re-initializations
+    $reseen= 0;
+    $cpu=   sum times;
+    $clock= time;
+
+    # read from existing flatfile
+    do {
+        open my $in,  '<', $dictwords or die "Could not open '$dictwords': $!";
+
+        tie my %hash, 'String::Lookup',
+          autoflush => 100000,
+          @storage;
+        $ro_hash= %hash;
+
+        # do our lookup
+        diag "Reading strings from $dictwords...";
+        my $id;
+        my $string;
+        chomp($string), $reseen++, $id= $ro_hash->{$string} || $hash{ \$string }
+          while $string= readline $in;
+    };
+    my ( $new_size, $new_changed )= ( stat $filename )[ 7,9 ];
+    is( $reseen, $seen, 'same number of strings seen' );
+    is( $new_size, $size, 'check if file exists with same size' );
+    is( $new_changed, $changed, 'check if file exists with same mtime' );
+
+    # stats
+    $cpu=   sum(times) - $cpu;
+    $clock= time - $clock;
+    diag sprintf "\nSaw %d strings from flatfile in %.2f seconds using %.2f CPU seconds",
       $seen, $clock, $cpu;
     diag sprintf "That's %.2f ID's / second", $seen / $clock;
 } #SKIP
