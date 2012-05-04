@@ -1,14 +1,9 @@
-package String::Lookup::DBI;
+package String::Lookup::DBI 0.08;
 
-# version info
-$VERSION= '0.07';
-
-# make sure we're strict and verbose as possible
-use strict;
+# what runtime features we need
+use 5.014;
 use warnings;
-
-# ok parameters
-my @ok= qw( dbh id name );
+use autodie;
 
 # satisfy -require-
 1;
@@ -79,7 +74,7 @@ sub init {
 #  IN: 1 class (not used)
 # OUT: 1 .. N parameter names
 
-sub parameters_ok { @ok } #parameters_ok
+sub parameters_ok { state $ok= [ qw( dbh id name ) ]; @{$ok} } #parameters_ok
 
 #-------------------------------------------------------------------------------
 
@@ -111,7 +106,7 @@ String::Lookup::DBI - flush String::Lookup using DBI compatible database handle
 
 =head1 VERSION
 
-This documentation describes version 0.07.
+This documentation describes version 0.08.
 
 =head1 DESCRIPTION
 

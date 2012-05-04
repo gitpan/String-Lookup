@@ -1,21 +1,16 @@
-package String::Lookup::FlatFile;
+package String::Lookup::FlatFile 0.08;
 
-# version info
-$VERSION= '0.07';
-
-# make sure we're strict and verbose as possible
-use strict;
+# what runtime features we need
+use 5.014;
 use warnings;
+use autodie qw( binmode close open );
 
 # modules that we need
 no  bytes;
 use Encode qw( is_utf8 _utf8_on );
-use IO::Handle;
 
 # initializations
-my @ok=        qw( dir );
-my $format=    'Nnc';
-my $headerlen= 7;
+my $format= 'Nnc';
 
 # satisfy -require-
 1;
@@ -65,7 +60,8 @@ sub init {
     my ( $class, $options )= @_;
 
     # defaults
-    $options->{dir} ||= $ENV{STRING_LOOKUP_FLATFILE_DIR};
+    state $headerlen= 7;
+    $options->{dir} //= $ENV{STRING_LOOKUP_FLATFILE_DIR};
 
     # sanity check
     my @errors;
@@ -80,10 +76,8 @@ sub init {
 
     # set up reading of file if there is one
     if ( -s $filename ) {
-        open my $handle, '<', $filename
-          or die "Could not open file '$filename' for reading: $!";
-        binmode $handle
-          or die "Could not binmode on reading from '$filename': $!";
+        open my $handle, '<', $filename;
+        binmode $handle;
 
         # while we have something
         my ( $bytes, $header, $id, $stringlen, $string, $utf8on );
@@ -105,15 +99,12 @@ sub init {
 
         # all ok?
         die "Error reading header: $!" if !defined $bytes;
-        close $handle
-          or die "Error flushing data to disk: $!";
+        close $handle;
     }
 
     # open file for flushing (again)
-    open my $handle, '>>', $filename
-      or die "Could not open file '$filename' for appending: $!";
-    binmode $handle
-      or die "Could not binmode on appending to '$filename': $!";
+    open my $handle, '>>', $filename;
+    binmode $handle;
     $options->{handle}= $handle;
 
     return \%hash;
@@ -125,7 +116,7 @@ sub init {
 #  IN: 1 class (not used)
 # OUT: 1 .. N parameter names
 
-sub parameters_ok { @ok } #parameters_ok
+sub parameters_ok { state $ok= [ qw( dir ) ]; @{$ok} } #parameters_ok
 
 #-------------------------------------------------------------------------------
 
@@ -155,7 +146,7 @@ String::Lookup::FlatFile - flush String::Lookup to flat files
 
 =head1 VERSION
 
-This documentation describes version 0.07.
+This documentation describes version 0.08.
 
 =head1 DESCRIPTION
 

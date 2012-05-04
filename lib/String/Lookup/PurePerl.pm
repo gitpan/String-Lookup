@@ -1,11 +1,8 @@
-package String::Lookup::PurePerl;   # fake
-package String::Lookup;
+package String::Lookup::PurePerl 0.08;   # fake
+package String::Lookup 0.08;
 
-# version info
-$VERSION= '0.07';
-
-# make sure we're strict and verbose as possible
-use strict;
+# what runtime features we need
+use 5.014;
 use warnings;
 
 # constants we need
@@ -14,9 +11,9 @@ use constant INCREMENT => 1;  # increment value between ID's
 use constant THEHASH   => 2;  # hash ref with string -> id mapping
 use constant THELIST   => 3;  # list ref with id -> string mapping
 use constant INDEX     => 4;  # keys() index
-use constant FLUSH     => 5;  # code to flush
+use constant FLUSH     => 5;  # code that does the flush
 use constant TODO      => 6;  # id's added
-use constant AUTOFLUSH => 7;  # code 
+use constant AUTOFLUSH => 7;  # code that determines when to autoflush
 
 # modules that we need
 use Scalar::Util qw( reftype );
@@ -141,7 +138,7 @@ sub TIEHASH {
             my $seconds= $1;
             my $epoch=   time + $seconds;
             $self->[AUTOFLUSH]= sub {
-                $epoch += $seconds, shift->flush if time >= $epoch;
+                $epoch += $seconds, $_[0]->flush if time >= $epoch;
             };
         }
 

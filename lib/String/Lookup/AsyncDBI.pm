@@ -1,21 +1,16 @@
-package String::Lookup::AsyncDBI;
+package String::Lookup::AsyncDBI 0.08;
 
-# version info
-$VERSION= '0.07';
-
-# make sure we're strict and verbose as possible
-use strict;
+# what runtime features we need
+use 5.014;
 use warnings;
+use autodie qw( binmode close mkdir open );
 
 # modules that we need
 no  bytes;
 use Encode qw( is_utf8 _utf8_on );
-use IO::Handle;
 
 # initializations
-my @ok=        qw( dir );
-my $format=    'Nnc';
-my $headerlen= 7;
+my $format= 'Nnc';
 
 # satisfy -require-
 1;
@@ -41,10 +36,8 @@ sub flush {
     my $filename= "$options->{tagdir}/" . time . ".lookup";
     
     # open file for flushing (again)
-    open my $handle, '>>', $filename
-      or die "Could not open file '$filename' for appending: $!";
-    binmode $handle
-      or die "Could not binmode on appending to '$filename': $!";
+    open my $handle, '>>', $filename;
+    binmode $handle;
 
     # write all ID's
     foreach my $id ( @$ids ) {
@@ -75,20 +68,20 @@ sub init {
     push @errors, "Must have a 'dir' specified" if !$options->{dir};
     push @errors, "Must have a 'tag' specified" if !$options->{tag};
     my $tagdir= $options->{tagdir}= "$options->{dir}/$options->{tag}";
-    mkdir $tagdir
-      or push @errors, "Could not make tagdir '$tagdir': $!";
+    eval { mkdir $tagdir }; # don't care whether worked
 
     # too bad
     die join "\n", "Found the following problems with init:", @errors
       if @errors;
 
-    # set up reading of all files in tagdir
+    # initializations
+    state $headerlen= 7;
     my %hash;
+
+    # set up reading of all files in tagdir
     foreach my $filename ( grep { -s } glob "$tagdir/*.lookup" ) {
-        open my $handle, '<', $filename
-          or die "Could not open file '$filename' for reading: $!";
-        binmode $handle
-          or die "Could not binmode on reading from '$filename': $!";
+        open my $handle, '<', $filename;
+        binmode $handle;
 
         # while we have something
         my ( $bytes, $header, $id, $stringlen, $string, $utf8on );
@@ -110,8 +103,7 @@ sub init {
 
         # all ok?
         die "Error reading header: $!" if !defined $bytes;
-        close $handle
-          or die "Error flushing data to disk: $!";
+        close $handle;
     }
 
     return \%hash;
@@ -123,7 +115,7 @@ sub init {
 #  IN: 1 class (not used)
 # OUT: 1 .. N parameter names
 
-sub parameters_ok { @ok } #parameters_ok
+sub parameters_ok { state $ok= [qw( dir ) ]; @{$ok} } #parameters_ok
 
 #-------------------------------------------------------------------------------
 
@@ -153,7 +145,7 @@ String::Lookup::AsyncDBI - flush String::Lookup to flat files
 
 =head1 VERSION
 
-This documentation describes version 0.07.
+This documentation describes version 0.08.
 
 =head1 DESCRIPTION
 

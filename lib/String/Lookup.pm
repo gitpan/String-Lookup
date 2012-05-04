@@ -1,10 +1,7 @@
-package String::Lookup;
+package String::Lookup 0.08;
 
-# version info
-$VERSION= '0.07';
-
-# make sure we're strict and verbose as possible
-use strict;
+# what runtime features we need
+use 5.014;
 use warnings;
 
 # just use the PurePerl implementation for now
@@ -50,7 +47,7 @@ String::Lookup - convert strings to ID's authoritatively and vice-versa
 
 =head1 VERSION
 
-This documentation describes version 0.06.
+This documentation describes version 0.08.
 
 =head1 DESCRIPTION
 
