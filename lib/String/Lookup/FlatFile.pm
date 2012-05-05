@@ -1,4 +1,5 @@
-package String::Lookup::FlatFile 0.09;
+package String::Lookup::FlatFile 0.10;
+$VERSION= 0.10; # for PAUSE
 
 # what runtime features we need
 use 5.014;
@@ -146,7 +147,7 @@ String::Lookup::FlatFile - flush String::Lookup to flat files
 
 =head1 VERSION
 
-This documentation describes version 0.09.
+This documentation describes version 0.10.
 
 =head1 DESCRIPTION
 
