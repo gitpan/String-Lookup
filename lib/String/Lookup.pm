@@ -1,4 +1,4 @@
-package String::Lookup 0.08;
+package String::Lookup 0.09;
 
 # what runtime features we need
 use 5.014;
@@ -47,7 +47,7 @@ String::Lookup - convert strings to ID's authoritatively and vice-versa
 
 =head1 VERSION
 
-This documentation describes version 0.08.
+This documentation describes version 0.09.
 
 =head1 DESCRIPTION
 
