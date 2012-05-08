@@ -1,12 +1,12 @@
 require 5.014;
 use strict;
 use ExtUtils::MakeMaker;
-use Devel::Required pod => [ qw(
+eval "use Devel::Required pod => [ qw(
   lib/String/Lookup.pm
   lib/String/Lookup/AsyncDBI.pm
   lib/String/Lookup/DBI.pm
   lib/String/Lookup/FlatFile.pm
-) ];
+) ]";
 
 WriteMakefile (
  NAME		=> "String::Lookup",

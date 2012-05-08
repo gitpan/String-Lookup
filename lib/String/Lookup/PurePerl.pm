@@ -1,5 +1,6 @@
 package String::Lookup::PurePerl;   # fake
-package String::Lookup 0.11;
+package String::Lookup;
+$VERSION= 0.12;
 
 # what runtime features we need
 use 5.014;

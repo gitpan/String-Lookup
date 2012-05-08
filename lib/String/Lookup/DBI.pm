@@ -1,4 +1,5 @@
-package String::Lookup::DBI 0.11;
+package String::Lookup::DBI;
+$VERSION= 0.12;
 
 # what runtime features we need
 use 5.014;
@@ -106,7 +107,7 @@ String::Lookup::DBI - flush String::Lookup using DBI compatible database handle
 
 =head1 VERSION
 
-This documentation describes version 0.11.
+This documentation describes version 0.12.
 
 =head1 DESCRIPTION
 

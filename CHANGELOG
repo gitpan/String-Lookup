@@ -1,3 +1,6 @@
+0.12    8 May 2012
+        Restored to $VERSION setting, for now.
+
 0.11    8 May 2012
         PAUSE now understands new package syntax, search.cpan.org also, but
         MetaCPAN still doesn't.  Anyway, removing the specific $VERSION setting
